@@ -1,4 +1,4 @@
-﻿pipeline {
+pipeline {
     agent any
     
     environment {
@@ -141,7 +141,7 @@
                 script {
                     echo "🏥 Performing health check..."
                     sh """
-                        # Wait a bit for pods to be fully ready
+                        # Wait for pods to be ready
                         sleep 10
                         
                         # Get backend pod
@@ -162,14 +162,14 @@
             echo '✅ =============================================='
             echo '✅  PIPELINE COMPLETED SUCCESSFULLY!'
             echo '✅  All images built, pushed, and deployed.'
-            echo '✅  Commit: ${GIT_COMMIT_SHORT}'
+            echo "✅  Commit: ${GIT_COMMIT_SHORT}"
             echo '✅ =============================================='
         }
         failure {
             echo '❌ =============================================='
             echo '❌  PIPELINE FAILED!'
             echo '❌  Check logs above for details.'
-            echo '❌  Commit: ${GIT_COMMIT_SHORT}'
+            echo "❌  Commit: ${GIT_COMMIT_SHORT}"
             echo '❌ =============================================='
         }
         always {
