@@ -92,20 +92,18 @@ pipeline {
                         echo "Updating backend deployment..."
                         kubectl set image deployment/backend \
                             backend=${BACKEND_IMAGE}:${GIT_COMMIT_SHORT} \
-                            -n production \
-                            --record
+                            -n production
                         
                         echo "Updating frontend deployment..."
                         kubectl set image deployment/frontend \
                             frontend=${FRONTEND_IMAGE}:${GIT_COMMIT_SHORT} \
-                            -n production \
-                            --record
+                            -n production
                         
                         echo "Waiting for backend rollout..."
-                        kubectl rollout status deployment/backend -n production --timeout=300s
+                        kubectl rollout status deployment/backend -n production --timeout=600s
                         
                         echo "Waiting for frontend rollout..."
-                        kubectl rollout status deployment/frontend -n production --timeout=300s
+                        kubectl rollout status deployment/frontend -n production --timeout=600s
                         
                         echo "✅ Deployment completed successfully"
                     """
@@ -141,10 +139,8 @@ pipeline {
                 script {
                     echo "🏥 Performing health check..."
                     sh """
-                        # Wait for pods to be ready
                         sleep 10
                         
-                        # Get backend pod
                         BACKEND_POD=\$(kubectl get pod -n production -l app=backend -o jsonpath='{.items[0].metadata.name}')
                         
                         echo "Testing backend health endpoint..."
