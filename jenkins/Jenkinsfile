@@ -1,0 +1,172 @@
+pipeline {
+    agent any
+    
+    environment {
+        PROJECT_ID = 'YOUR_PROJECT_ID'
+        CLUSTER_NAME = 'devops-gke-cluster'
+        CLUSTER_ZONE = 'us-central1-a'
+        GCR_REGISTRY = "gcr.io/${PROJECT_ID}"
+        BACKEND_IMAGE = "${GCR_REGISTRY}/backend"
+        FRONTEND_IMAGE = "${GCR_REGISTRY}/frontend"
+        GIT_COMMIT_SHORT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code from repository...'
+                checkout scm
+            }
+        }
+        
+        stage('Build Backend Image') {
+            steps {
+                script {
+                    echo "Building Backend Docker Image..."
+                    dir('backend') {
+                        sh """
+                            docker build -t ${BACKEND_IMAGE}:${GIT_COMMIT_SHORT} .
+                            docker tag ${BACKEND_IMAGE}:${GIT_COMMIT_SHORT} ${BACKEND_IMAGE}:latest
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Build Frontend Image') {
+            steps {
+                script {
+                    echo "Building Frontend Docker Image..."
+                    dir('frontend') {
+                        sh """
+                            docker build -t ${FRONTEND_IMAGE}:${GIT_COMMIT_SHORT} .
+                            docker tag ${FRONTEND_IMAGE}:${GIT_COMMIT_SHORT} ${FRONTEND_IMAGE}:latest
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Push Images to GCR') {
+            steps {
+                script {
+                    echo "Pushing images to Google Container Registry..."
+                    sh """
+                        gcloud auth configure-docker
+                        docker push ${BACKEND_IMAGE}:${GIT_COMMIT_SHORT}
+                        docker push ${BACKEND_IMAGE}:latest
+                        docker push ${FRONTEND_IMAGE}:${GIT_COMMIT_SHORT}
+                        docker push ${FRONTEND_IMAGE}:latest
+                    """
+                }
+            }
+        }
+        
+        stage('Deploy to GKE') {
+            steps {
+                script {
+                    echo "Deploying to GKE Cluster..."
+                    sh """
+                        gcloud container clusters get-credentials ${CLUSTER_NAME} \
+                            --zone ${CLUSTER_ZONE} \
+                            --project ${PROJECT_ID}
+                        
+                        # Apply namespace
+                        kubectl apply -f k8s-manifests/namespace.yaml
+                        
+                        # Deploy MongoDB
+                        kubectl apply -f k8s-manifests/mongodb-deployment.yaml
+                        
+                        # Wait for MongoDB to be ready
+                        kubectl wait --for=condition=ready pod -l app=mongodb -n production --timeout=300s
+                        
+                        # Update image tags in deployments
+                        kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${GIT_COMMIT_SHORT} -n production
+                        kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}:${GIT_COMMIT_SHORT} -n production
+                        
+                        # Apply backend deployment
+                        kubectl apply -f k8s-manifests/backend-deployment.yaml
+                        
+                        # Apply frontend deployment
+                        kubectl apply -f k8s-manifests/frontend-deployment.yaml
+                        
+                        # Wait for deployments to be ready
+                        kubectl rollout status deployment/backend -n production --timeout=300s
+                        kubectl rollout status deployment/frontend -n production --timeout=300s
+                    """
+                }
+            }
+        }
+        
+        stage('Deploy Monitoring') {
+            steps {
+                script {
+                    echo "Deploying Prometheus and Grafana..."
+                    sh """
+                        # Deploy Prometheus
+                        kubectl apply -f k8s-manifests/monitoring/prometheus-config.yaml
+                        kubectl apply -f k8s-manifests/monitoring/prometheus-deployment.yaml
+                        
+                        # Deploy Grafana
+                        kubectl apply -f k8s-manifests/monitoring/grafana-deployment.yaml
+                        
+                        # Wait for monitoring stack
+                        kubectl wait --for=condition=ready pod -l app=prometheus -n monitoring --timeout=300s
+                        kubectl wait --for=condition=ready pod -l app=grafana -n monitoring --timeout=300s
+                    """
+                }
+            }
+        }
+        
+        stage('Verify Deployment') {
+            steps {
+                script {
+                    echo "Verifying deployment..."
+                    sh """
+                        echo "=== Production Namespace Pods ==="
+                        kubectl get pods -n production
+                        
+                        echo "=== Production Services ==="
+                        kubectl get svc -n production
+                        
+                        echo "=== Monitoring Namespace Pods ==="
+                        kubectl get pods -n monitoring
+                        
+                        echo "=== Monitoring Services ==="
+                        kubectl get svc -n monitoring
+                        
+                        echo "=== Frontend LoadBalancer IP ==="
+                        kubectl get svc frontend-service -n production -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+                        
+                        echo "=== Prometheus URL ==="
+                        kubectl get svc prometheus-service -n monitoring -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+                        
+                        echo "=== Grafana URL ==="
+                        kubectl get svc grafana-service -n monitoring -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+                    """
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+            script {
+                sh """
+                    echo "Application deployed successfully!"
+                    echo "Frontend: http://\$(kubectl get svc frontend-service -n production -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+                    echo "Prometheus: http://\$(kubectl get svc prometheus-service -n monitoring -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):9090"
+                    echo "Grafana: http://\$(kubectl get svc grafana-service -n monitoring -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):3000"
+                """
+            }
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+        always {
+            echo 'Cleaning up...'
+            sh 'docker system prune -f'
+        }
+    }
+}

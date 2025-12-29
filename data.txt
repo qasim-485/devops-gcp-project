@@ -1,0 +1,9 @@
+
+gke_cluster_endpoint = "34.9.85.129"
+gke_cluster_name = "devops-gke-cluster"
+jenkins_ip = "34.59.247.214"
+jenkins_public_ip = "34.59.247.214"
+kubectl_config_command = "gcloud container clusters get-credentials devops-gke-cluster --zone us-central1-a --project terraform-k8s-project-481806"
+
+
+Frontend URL: http://35.239.86.126

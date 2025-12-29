@@ -1,0 +1,34 @@
+﻿═══════════════════════════════════════════════════════════
+   DEVOPS GCP PROJECT - FINAL STATUS
+═══════════════════════════════════════════════════════════
+
+🌐 ACCESS INFORMATION
+───────────────────────────────────────────────────────────
+Frontend:   http://35.239.86.126
+Prometheus: http://
+Grafana:    http://
+  Credentials: admin / admin123
+Jenkins:    http://34.59.247.214:8080
+
+📝 QUICK COMMANDS
+───────────────────────────────────────────────────────────
+# View logs
+kubectl logs -f -n production -l app=backend
+kubectl logs -f -n production -l app=frontend
+kubectl logs -f -n production mongodb-0
+
+# Port forward backend for testing
+kubectl port-forward -n production svc/backend-service 5000:5000
+# Then visit: http://localhost:5000/health
+
+# Scale applications
+kubectl scale deployment backend -n production --replicas=3
+kubectl scale deployment frontend -n production --replicas=3
+
+# Check resources
+kubectl top nodes
+kubectl top pods -n production
+
+═══════════════════════════════════════════════════════════
+Generated: 2025-12-29 19:14:19
+═══════════════════════════════════════════════════════════

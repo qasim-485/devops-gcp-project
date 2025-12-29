@@ -1,0 +1,147 @@
+﻿═══════════════════════════════════════════════════════════
+   DEVOPS GCP PROJECT - COMPLETE ACCESS GUIDE
+═══════════════════════════════════════════════════════════
+
+🌐 APPLICATION ACCESS
+───────────────────────────────────────────────────────────
+Frontend Application: http://35.239.86.126
+  - Task Manager Interface
+  - Create/Read/Update/Delete tasks
+  - View statistics and metrics
+
+📊 MONITORING ACCESS
+───────────────────────────────────────────────────────────
+Prometheus:  http://
+  - Metrics collection and querying
+  - Query examples:
+    • up (check service health)
+    • rate(container_cpu_usage_seconds_total[5m])
+    • container_memory_usage_bytes
+
+Grafana:     http://
+  - Username: admin
+  - Password: admin123
+  - Dashboard IDs to import:
+    • 315:   Kubernetes Cluster Monitoring
+    • 6417:  Kubernetes Deployments
+    • 1860:  Node Exporter Full
+    • 13332: Kubernetes API Server
+
+🔄 CI/CD ACCESS
+───────────────────────────────────────────────────────────
+Jenkins:     http://34.59.247.214:8080
+  - Pipeline automation
+  - Docker image builds
+  - GKE deployments
+
+📝 USEFUL KUBECTL COMMANDS
+───────────────────────────────────────────────────────────
+# View application logs
+kubectl logs -f -n production -l app=backend
+kubectl logs -f -n production -l app=frontend
+kubectl logs -f -n production mongodb-0
+
+# Port forward for local testing
+kubectl port-forward -n production svc/backend-service 5000:5000
+kubectl port-forward -n production svc/frontend-service 8080:80
+
+# Scale deployments
+kubectl scale deployment backend -n production --replicas=3
+kubectl scale deployment frontend -n production --replicas=2
+
+# Check resource usage
+kubectl top nodes
+kubectl top pods -n production
+kubectl describe nodes
+
+# Restart deployments
+kubectl rollout restart deployment backend -n production
+kubectl rollout restart deployment frontend -n production
+
+# View deployment history
+kubectl rollout history deployment/backend -n production
+
+# Access pod shell
+kubectl exec -it -n production deployment/backend -- sh
+
+🧪 API TESTING (via port-forward)
+───────────────────────────────────────────────────────────
+# In PowerShell:
+kubectl port-forward -n production svc/backend-service 5000:5000
+
+# Then test these endpoints:
+curl http://localhost:5000/health
+curl http://localhost:5000/api/tasks
+curl http://localhost:5000/api/stats
+
+# Create a task:
+@{title=System Verification Complete; description=All services are operational; status=completed; priority=high; _id=69528d5520de128d4ef35594; createdAt=2025-12-29T14:16:53.635Z; updatedAt=2025-12-29T14:16:53.636Z; __v=0} = @{
+  title = "New Task"
+  description = "Task description"
+  priority = "high"
+  status = "pending"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri http://localhost:5000/api/tasks 
+  -Method POST 
+  -Body @{title=System Verification Complete; description=All services are operational; status=completed; priority=high; _id=69528d5520de128d4ef35594; createdAt=2025-12-29T14:16:53.635Z; updatedAt=2025-12-29T14:16:53.636Z; __v=0} 
+  -ContentType "application/json"
+
+🎯 GRAFANA SETUP STEPS
+───────────────────────────────────────────────────────────
+1. Open: http://
+2. Login: admin / admin123
+3. Verify Data Source:
+   - Go to: ☰ → Connections → Data sources
+   - Click: Prometheus
+   - Verify URL: http://prometheus-service:9090
+   - Click: Save & Test
+4. Import Dashboards:
+   - Go to: ☰ → Dashboards → Import
+   - Enter ID: 315
+   - Select: Prometheus
+   - Click: Import
+   - Repeat for IDs: 6417, 1860, 13332
+
+🔧 TROUBLESHOOTING
+───────────────────────────────────────────────────────────
+# If pods are pending
+kubectl describe pod POD_NAME -n production
+
+# If services not accessible
+kubectl get svc -A
+kubectl get endpoints -n production
+
+# If out of resources
+kubectl top nodes
+kubectl describe nodes
+
+# Check events
+kubectl get events -n production --sort-by='.lastTimestamp'
+
+💰 COST MANAGEMENT
+───────────────────────────────────────────────────────────
+# Stop cluster (saves costs)
+gcloud container clusters resize devops-gke-cluster --num-nodes=0 --zone=us-central1-a
+
+# Restart cluster
+gcloud container clusters resize devops-gke-cluster --num-nodes=3 --zone=us-central1-a
+
+# Destroy everything
+cd C:\Users\w312\devops-gcp-project\terraform
+terraform destroy
+
+📚 PROJECT STRUCTURE
+───────────────────────────────────────────────────────────
+devops-gcp-project/
+├── terraform/          # Infrastructure as Code
+├── backend/            # Node.js/Express API
+├── frontend/           # React Application
+├── k8s-manifests/      # Kubernetes YAML files
+├── Jenkinsfile         # CI/CD Pipeline
+└── README.md           # Project Documentation
+
+═══════════════════════════════════════════════════════════
+Generated: 2025-12-29 19:17:27
+Project Status: ✅ FULLY OPERATIONAL
+═══════════════════════════════════════════════════════════
